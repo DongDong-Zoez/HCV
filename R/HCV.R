@@ -1,17 +1,17 @@
 dissimilarity <- function(optimization_domain, dist_method){
-  
+
   # calculate the dissimilarity matrix
-  
+
   dist_matrix <- as.matrix(dist(optimization_domain, method = dist_method))
   return(dist_matrix)
 }
 
 LanceWilliams_algorithm <- function(n_i, n_j, n_h){
-  
+
   # Dynamic programming update the dissimilarity matrix
-  
+
   n_k <- n_i + n_j # merge i-cluster and j-cluster, denoted by k-cluster
-  
+
   dict <- vector(mode = 'list', length = 8) # Build the dictionary to store the LanceWilliams coefficients
   names(dict) <- c('single', 'complete', 'average', 'centroid', 'ward.D', 'ward.D2','median', 'weight')
   dict[[1]] <- c(0.5,0.5,0,-0.5)
@@ -26,9 +26,9 @@ LanceWilliams_algorithm <- function(n_i, n_j, n_h){
 }
 
 DistanceBetweenCluster <- function(linkage, alpha_i, alpha_j, beta, gamma, d_hi, d_hj, d_ij){
-  
+
   # return the distance between cluster by given linkage
-  
+
   if(linkage == 'ward.D2'){
     return((alpha_i * (d_hi ** 2) + alpha_j * (d_hj ** 2) + beta * (d_ij ** 2) + gamma * (d_hi - d_hj) ** 2) ** 0.5)
   }
@@ -38,17 +38,17 @@ DistanceBetweenCluster <- function(linkage, alpha_i, alpha_j, beta, gamma, d_hi,
 }
 
 Voronoi_adjacency_matrix <- function(constraint_domain){
-  
+
   # used for building the Delaunay triangulation and Voronoi diagram
-  
+
   n <- nrow(constraint_domain)
   adj_mat <- matrix(0, nrow = n, ncol = n)
   vor <- alphahull::delvor(constraint_domain)
   for(i in 1:nrow(vor$mesh)){
-    
+
     # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
     # The attribute "mesh" carry the spatial information of constraint_domain
-    
+
     x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
     y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
     adj_mat[x, y] <- 1
@@ -58,9 +58,9 @@ Voronoi_adjacency_matrix <- function(constraint_domain){
 }
 
 FindMinimum <- function(dist_matrix, adj_mat){
-  
+
   # Find the minimum value among the lower triangle section in dissimilarity matrix
-  
+
   min_dist = c(-1,-1, Inf) # The first two are the (i, j) terns and third is the minimum value
   weighted_matrix <- dist_matrix / adj_mat
   n <- nrow(weighted_matrix)
@@ -99,22 +99,22 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
     for(h in 1:n){
       n_h = length(cluster[[h]])
       coef <- LanceWilliams_algorithm(n_i, n_j, n_h)[[key]]
-      
+
       if(h != min_dist[1]){
         dist_matrix[h, min_dist[1]] <- DistanceBetweenCluster(
           linkage, coef[1], coef[2],coef[3],coef[4],
           dist_matrix[h, min_dist[1]], dist_matrix[h, min_dist[2]],
           dist_matrix[min_dist[1], min_dist[2]]
         )
-        
+
         dist_matrix[min_dist[1], h] <- dist_matrix[h, min_dist[1]]
-        
+
         adj_mat[h, min_dist[1]] <- (adj_mat[h, min_dist[1]] | adj_mat[h, min_dist[2]])
         adj_mat[min_dist[1], h] <- adj_mat[h, min_dist[1]]
       }
     }
-    
-    
+
+
     if(n != 2){
       dist_matrix <- dist_matrix[,-min_dist[2]]
       dist_matrix <- dist_matrix[-min_dist[2],]
@@ -127,20 +127,20 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
       adj_mat <- as.matrix(adj_mat[,-min_dist[2]])
       adj_mat <- as.matrix(adj_mat[-min_dist[2],])
     }
-    
+
     n <- n - 1
     count <- count + 1
-    
+
     dslist[[count]] <- c(cluster[[min_dist[1]]], cluster[[min_dist[2]]])
     height[count] <- min_dist[[3]]
-    
+
     if(length(cluster[[min_dist[1]]]) == 1){
       merge[count, 1] <- -cluster[[min_dist[1]]]
     }
     if(length(cluster[[min_dist[2]]]) == 1){
       merge[count, 2] <- -cluster[[min_dist[2]]]
     }
-    
+
     if(length(cluster[[min_dist[1]]]) > 1){
       for(s in count:1){
         if(all(cluster[[min_dist[1]]] %in% dslist[[s]])){
@@ -155,20 +155,20 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
         }
       }
     }
-    
-    
+
+
     cluster[[min_dist[1]]] <- c(cluster[[min_dist[1]]], cluster[[min_dist[2]]])
     cluster <- cluster[-min_dist[2]]
     cuttree[n - iterate + 3,] <- Clusterlabels(cluster, n_stat)
-    
+
   }
   return(list(cuttree, merge, height))
 }
 
 Clusterlabels <- function(cluster, n){
-  
+
   # return the label for the iteration
-  
+
   labels <- rep(-1, n)
   for(i in 1:length(cluster)){
     for(item in cluster[[i]]){
@@ -178,7 +178,7 @@ Clusterlabels <- function(cluster, n){
   return(labels)
 }
 
-HierarchicalVoronoi <- function(constraint_domain, optimization_domain, 
+HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
                                 linkage, iterate, diss = 'none',
                                 dist_method = 'euclidean'){
   n <- nrow(constraint_domain)
@@ -190,7 +190,7 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
   }
   dist_matrix <- as.matrix(dist_matrix)
   adj_mat <- Voronoi_adjacency_matrix(constraint_domain)
-  
+
   result <- AGNES(dist_matrix, adj_mat, linkage, iterate + 1)
   clust <- list()
   clust$label_matrix <- result[[1]]
@@ -239,7 +239,3 @@ synthetic_data <- function(k, f, r, n, attribute){
                optimization_domain_center = optimization_domain_center)
   return(list)
 }
-
-usethis::use_data(t)
-usethis::create_package('C:\\Users\\ASUS\\Documents\\R package\\HCV')
-usethis::use_vignette("introduction")
