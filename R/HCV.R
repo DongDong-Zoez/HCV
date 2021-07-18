@@ -179,7 +179,7 @@ Clusterlabels <- function(cluster, n){
 }
 
 HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
-                                linkage, iterate, diss = 'none',
+                                linkage, iterate=2, diss = 'none',
                                 dist_method = 'euclidean'){
   n <- nrow(constraint_domain)
   if(diss == 'precomputed'){
@@ -210,16 +210,17 @@ data_structure <- function(ds, n){
   return(ds)
 }
 
-synthetic_data <- function(k, f, r, n, attribute){
-  constraint_domain <- matrix(0, ncol = attribute, nrow = n)
+synthetic_data <- function(k, f, r, n, attribute, spatial){
+  constraint_domain <- matrix(0, ncol = spatial, nrow = n)
   optimization_domain <- matrix(0, ncol = attribute, nrow = n)
   labels <- rep(-1, n)
-  constraint_domain_center = runif(attribute * k, 0, 1)
-  constraint_domain_center = matrix(constraint_domain_center, ncol = attribute)
-  optimization_domain_center = constraint_domain_center
+  constraint_domain_center = runif(spatial * k, 0, 1)
+  constraint_domain_center = matrix(constraint_domain_center, ncol = spatial)
+  optimization_domain_center = runif(attribute * k, 0, 1)
+  optimization_domain_center = matrix(optimization_domain_center, ncol = attribute)
   for(z in 1:n){
     prob <- rep(0, k)
-    p <- runif(attribute, 0, 1)
+    p <- runif(spatial, 0, 1)
     constraint_domain[z,] <- p
     for(i in 1:k){
       q <- (1 / (sum((p - constraint_domain_center[i,]) ** 2))**0.5) ** f

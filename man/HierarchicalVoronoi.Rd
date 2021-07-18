@@ -11,10 +11,13 @@ HierarchicalVoronoi(constraint_domain, optimization_domain, linkage, iterate)
 
 \item{optimization_domain:}{`[matrix]`: The spatial feature of the data.}
 
-\item{linkage:}{`[character]`: The valid arguments are "single", "complete", "average", "median", "ward", "centroid" and "weighted".}
-
-\item{iterate:}{`[integer]`: The number of clusters, iterate = 2 is recommanded.}
+\item{linkage:}{
+`[character]`: The valid arguments are "single", "complete", "average", "median", "ward", "centroid" and "weighted".
 }
+
+\item{iterate:}
+{
+`[integer]`: The number of clusters, iterate = 2 is recommanded.}
 }
 \value{
 a 'hclust' object.
