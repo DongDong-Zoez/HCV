@@ -1,6 +1,15 @@
 dissimilarity <- function(optimization_domain, dist_method){
 
   # calculate the dissimilarity matrix
+  if(dist_method == 'correlation'){
+    dist_matrix <- 1 - cor(t(optimization_domain))
+    return(dist_matrix)
+  }
+
+  if(dist_method == 'abscor'){
+    dist_matrix <- 1 - abs(cor(t(optimization_domain)))
+    return(dist_matrix)
+  }
 
   dist_matrix <- as.matrix(dist(optimization_domain, method = dist_method))
   return(dist_matrix)
@@ -37,22 +46,37 @@ DistanceBetweenCluster <- function(linkage, alpha_i, alpha_j, beta, gamma, d_hi,
   }
 }
 
-Voronoi_adjacency_matrix <- function(constraint_domain){
+Voronoi_adjacency_matrix <- function(constraint_domain, boundless){
 
   # used for building the Delaunay triangulation and Voronoi diagram
-
   n <- nrow(constraint_domain)
   adj_mat <- matrix(0, nrow = n, ncol = n)
   vor <- alphahull::delvor(constraint_domain)
-  for(i in 1:nrow(vor$mesh)){
+  if(boundless==T){
+    for(i in 1:nrow(vor$mesh)){
 
-    # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
-    # The attribute "mesh" carry the spatial information of constraint_domain
+      # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
+      # The attribute "mesh" carry the spatial information of constraint_domain
 
-    x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
-    y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
-    adj_mat[x, y] <- 1
-    adj_mat[y, x] <- 1
+      if(vor$mesh[i,11]==0 & vor$mesh[i,12]==0){
+        x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
+        y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
+        adj_mat[x, y] <- 1
+        adj_mat[y, x] <- 1
+      }
+    }
+  }
+  if(boundless==F){
+    for(i in 1:nrow(vor$mesh)){
+
+      # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
+      # The attribute "mesh" carry the spatial information of constraint_domain
+
+      x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
+      y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
+      adj_mat[x, y] <- 1
+      adj_mat[y, x] <- 1
+    }
   }
   return(adj_mat)
 }
@@ -68,7 +92,6 @@ FindMinimum <- function(dist_matrix, adj_mat){
     for(j in 1:(i-1)){
       dist <- weighted_matrix[i, j]
       if(dist <= min_dist[3]){
-        dist <- weighted_matrix[i, j]
         min_dist[3] = dist
         min_dist[1] = i
         min_dist[2] = j
@@ -179,8 +202,8 @@ Clusterlabels <- function(cluster, n){
 }
 
 HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
-                                linkage, iterate=2, diss = 'none',
-                                dist_method = 'euclidean'){
+                                linkage, iterate=2, diss = 'none', adjacency=F,
+                                dist_method = 'euclidean', weighted=F, boundless=F){
   n <- nrow(constraint_domain)
   if(diss == 'precomputed'){
     dist_matrix <- optimization_domain
@@ -189,7 +212,18 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
     dist_matrix <- dissimilarity(optimization_domain, dist_method)
   }
   dist_matrix <- as.matrix(dist_matrix)
-  adj_mat <- Voronoi_adjacency_matrix(constraint_domain)
+  if(adjacency == T){
+    adj_mat <- constraint_domain
+  }
+  else{
+    adj_mat <- Voronoi_adjacency_matrix(constraint_domain, boundless)
+  }
+  adj_mat <- as.matrix(adj_mat)
+
+  if(weighted){
+    adj_bool <- delaunayEdge(constraint_domain)
+    adj_mat <- (adj_mat & adj_bool) * 1
+  }
 
   result <- AGNES(dist_matrix, adj_mat, linkage, iterate + 1)
   clust <- list()
@@ -210,7 +244,7 @@ data_structure <- function(ds, n){
   return(ds)
 }
 
-synthetic_data <- function(k, f, r, n, attribute, spatial){
+synthetic_data <- function(k, f, r, n, attribute, spatial, homogeneity = T){
   constraint_domain <- matrix(0, ncol = spatial, nrow = n)
   optimization_domain <- matrix(0, ncol = attribute, nrow = n)
   labels <- rep(-1, n)
@@ -218,6 +252,9 @@ synthetic_data <- function(k, f, r, n, attribute, spatial){
   constraint_domain_center = matrix(constraint_domain_center, ncol = spatial)
   optimization_domain_center = runif(attribute * k, 0, 1)
   optimization_domain_center = matrix(optimization_domain_center, ncol = attribute)
+  if(homogeneity){
+    optimization_domain_center <- constraint_domain_center
+  }
   for(z in 1:n){
     prob <- rep(0, k)
     p <- runif(spatial, 0, 1)
@@ -240,3 +277,27 @@ synthetic_data <- function(k, f, r, n, attribute, spatial){
                optimization_domain_center = optimization_domain_center)
   return(list)
 }
+
+delaunayEdge <- function(constraint_domain){
+  vor <- delvor(constraint_domain)
+  n_k <- nrow(constraint_domain)
+  adj_bool <- matrix(1, ncol=n_k, nrow=n_k)
+  idx <- vor$mesh[,1:2]
+  edgelength <- 0
+  for(j in 1:nrow(vor$mesh)){
+    len <- (sum((constraint_domain[idx[j,1],] - constraint_domain[idx[j,2],])**2))**0.5
+    edgelength <- edgelength + len
+  }
+
+  avelen <- edgelength / nrow(vor$mesh)
+
+  for(j in 1:nrow(vor$mesh)){
+    len <- (sum((constraint_domain[idx[j,1],] - constraint_domain[idx[j,2],])**2))**0.5
+    if(avelen < len){
+      adj_bool[idx[j,1], idx[j,2]] <- adj_bool[idx[j,2], idx[j,1]] <- 0
+    }
+  }
+
+  return(adj_bool)
+}
+
