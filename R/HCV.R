@@ -5,14 +5,11 @@ dissimilarity <- function(optimization_domain, dist_method){
     dist_matrix <- 1 - cor(t(optimization_domain))
     return(dist_matrix)
   }
-<<<<<<< HEAD
-=======
 
   if(dist_method == 'abscor'){
     dist_matrix <- 1 - abs(cor(t(optimization_domain)))
     return(dist_matrix)
   }
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
 
   if(dist_method == 'abscor'){
     dist_matrix <- 1 - abs(cor(t(optimization_domain)))
@@ -63,7 +60,6 @@ Voronoi_adjacency_matrix <- function(constraint_domain, boundless){
   vor <- alphahull::delvor(constraint_domain)
   if(boundless==T){
     for(i in 1:nrow(vor$mesh)){
-<<<<<<< HEAD
 
       # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
       # The attribute "mesh" carry the spatial information of constraint_domain
@@ -78,14 +74,10 @@ Voronoi_adjacency_matrix <- function(constraint_domain, boundless){
   }
   if(boundless==F){
     for(i in 1:nrow(vor$mesh)){
-=======
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
 
       # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
       # The attribute "mesh" carry the spatial information of constraint_domain
 
-<<<<<<< HEAD
-=======
       if(vor$mesh[i,11]==0 & vor$mesh[i,12]==0){
         x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
         y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
@@ -100,7 +92,6 @@ Voronoi_adjacency_matrix <- function(constraint_domain, boundless){
       # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
       # The attribute "mesh" carry the spatial information of constraint_domain
 
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
       x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
       y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
       adj_mat[x, y] <- 1
@@ -233,12 +224,8 @@ Clusterlabels <- function(cluster, n){
 
 HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
                                 linkage, iterate=2, diss = 'none', adjacency=F,
-<<<<<<< HEAD
                                 dist_method = 'euclidean', weighted=F, boundless=F,
                                 clusterGain = F){
-=======
-                                dist_method = 'euclidean', weighted=F, boundless=F){
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
   n <- nrow(constraint_domain)
   if(diss == 'precomputed'){
     dist_matrix <- optimization_domain
@@ -247,10 +234,7 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
     dist_matrix <- dissimilarity(optimization_domain, dist_method)
   }
   dist_matrix <- as.matrix(dist_matrix)
-<<<<<<< HEAD
 
-=======
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
   if(adjacency == T){
     adj_mat <- constraint_domain
   }
@@ -359,7 +343,6 @@ delaunayEdge <- function(constraint_domain){
   return(adj_bool)
 }
 
-<<<<<<< HEAD
 plotMap <- function(map, feat, n = 10, color = rainbow(303), main = "",
                     bar_title = "rank", bar_step = 2000) {
   layout(t(1:2),widths = c(6,1))
@@ -448,7 +431,7 @@ SMI <- function(constraint_domain, optimization_domain, labels){
   constraint_domain_center <- colMeans(constraint_domain)
   optimization_domain_center <- colMeans(optimization_domain)
   WSS <- rep(0, k)
-  BSS¡@<- rep(0, k)
+  BSS <- rep(0, k)
   weightedWSS <- rep(0, k)
   weightedBSS <- rep(0, k)
   W <- vector(mode = 'list', length = k)
@@ -497,5 +480,3 @@ SMI <- function(constraint_domain, optimization_domain, labels){
 
   return(total)
 }
-=======
->>>>>>> 2b4021d377627bf62dc5d679514d7fee6506366c
