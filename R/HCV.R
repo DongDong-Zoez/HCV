@@ -78,20 +78,6 @@ Voronoi_adjacency_matrix <- function(constraint_domain, boundless){
       # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
       # The attribute "mesh" carry the spatial information of constraint_domain
 
-      if(vor$mesh[i,11]==0 & vor$mesh[i,12]==0){
-        x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
-        y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
-        adj_mat[x, y] <- 1
-        adj_mat[y, x] <- 1
-      }
-    }
-  }
-  if(boundless==F){
-    for(i in 1:nrow(vor$mesh)){
-
-      # let adj_mat{xy} = adj_mat{yx} = 1 if x and y have a common Voronoi edge
-      # The attribute "mesh" carry the spatial information of constraint_domain
-
       x <- vor$mesh[,1:2][i,][1] # The spatial coordinate of point x
       y <- vor$mesh[,1:2][i,][2] # The spatial coordinate of point y
       adj_mat[x, y] <- 1
@@ -141,7 +127,7 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
     n_i <- length(cluster[[min_dist[1]]])
     n_j <- length(cluster[[min_dist[2]]])
     for(h in 1:n){
-      n_h = length(cluster[[h]])
+      n_h <- length(cluster[[h]])
       coef <- LanceWilliams_algorithm(n_i, n_j, n_h)[[key]]
 
       if(h != min_dist[1]){
@@ -177,6 +163,7 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
 
     dslist[[count]] <- c(cluster[[min_dist[1]]], cluster[[min_dist[2]]])
     height[count] <- min_dist[[3]]
+
 
     if(length(cluster[[min_dist[1]]]) == 1){
       merge[count, 1] <- -cluster[[min_dist[1]]]
@@ -261,7 +248,7 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
 
   if(clusterGain){
     clusterGain <- vector(length = (n-2))
-    clusterMember <- clusterMember(clust)
+    clusterMember <- TreeStructure(clust)$fatherNode
     for(i in 1:(n-2)){
       clusterLabels <- as.numeric(cutree(clust, i+1))
       Group <- cbind(optimization_domain, clusterLabels)
@@ -339,8 +326,11 @@ delaunayEdge <- function(constraint_domain){
       adj_bool[idx[j,1], idx[j,2]] <- adj_bool[idx[j,2], idx[j,1]] <- 0
     }
   }
-
-  return(adj_bool)
+  edge <- list()
+  edge$avelen <- avelen
+  edge$count <- nrow(vor$mesh)
+  edge$bool <- adj_bool
+  return(edge)
 }
 
 plotMap <- function(map, feat, n = 10, color = rainbow(303), main = "",
@@ -360,30 +350,35 @@ plotMap <- function(map, feat, n = 10, color = rainbow(303), main = "",
   axis(4, cex.axis = 0.8, mgp = c(0,.5,0))
 }
 
-clusterMember <- function(hclust_obj)
+TreeStructure <- function(hclust)
 {
-  # the code are copy from R package pvclust
-  merge_matrix <- hclust_obj$merge
-  n <- nrow(merge_matrix) + 1
-  clusterList <- list()
+  merge <- hclust$merge
+  n <- nrow(merge) + 1
+  leftNode <- list()
+  rightNode <- list()
+  fatherNode <- list()
+  height <- hclust$height
 
   for(i in 1:(n-1)){
-    ai <- merge_matrix[i,1]
+    node <- merge[i,1]
 
-    if(ai < 0)
-      clusterList[[i]] <- -ai
+    if(node < 0)
+      leftNode[[i]] <- -node
     else
-      clusterList[[i]] <- clusterList[[ai]]
+      leftNode[[i]] <- fatherNode[[node]]
 
-    ai <- merge_matrix[i,2]
+    node <- merge[i,2]
 
-    if(ai < 0)
-      clusterList[[i]] <- sort(c(clusterList[[i]],-ai))
+    if(node < 0)
+      rightNode[[i]] <- -node
     else
-      clusterList[[i]] <- sort(c(clusterList[[i]],clusterList[[ai]]))
+      rightNode[[i]] <- fatherNode[[node]]
+
+    fatherNode[[i]] <- sort(c(leftNode[[i]], rightNode[[i]]))
   }
 
-  return(clusterList)
+  return(list(leftNode=leftNode, rightNode=rightNode, fatherNode=fatherNode,
+              height=height))
 }
 
 adjacencyCluster <- function(clusterLabels, adj_mat){
@@ -419,64 +414,75 @@ LocalMean <- function(adjList, clusterLabels, optimization_domain){
   return(meanMatrix)
 }
 
-SMI <- function(constraint_domain, optimization_domain, labels){
-  cluster_count <- as.data.frame(table(labels))
-  k <- nrow(cluster_count)
+newCrit <- function(constraint_domain, optimization_domain, hclust, k, standardize = T){
+  require(alphahull)
   n <- nrow(optimization_domain)
   edgelength <- rep(0, k)
-  constraint_domain <- scale(constraint_domain)
-  optimization_domain <- scale(optimization_domain)
+  edgecount <- rep(0, k)
+  labels <- as.numeric(cutree(hclust, k))
+  if(standardize){
+    constraint_domain <- scale(constraint_domain)
+    optimization_domain <- scale(optimization_domain)
+  }
   constraint_domain_kcenter <- matrix(0, nrow = k, ncol = ncol(constraint_domain))
   optimization_domain_kcenter <- matrix(0, nrow = k, ncol = ncol(optimization_domain))
   constraint_domain_center <- colMeans(constraint_domain)
   optimization_domain_center <- colMeans(optimization_domain)
+  idx <- edgelength(constraint_domain, hclust, k)
   WSS <- rep(0, k)
-  BSS <- rep(0, k)
   weightedWSS <- rep(0, k)
-  weightedBSS <- rep(0, k)
-  W <- vector(mode = 'list', length = k)
-  B <- vector(mode = 'list', length = k)
-  WW <- vector(mode = 'list', length = k)
-  WB <- vector(mode = 'list', length = k)
   for(i in 1:k){
-    n_k <- as.numeric(cluster_count[i, 2])
-    bool <- as.numeric(cluster_count[i, 1])
-    edgelength[i] <- delaunayEdge(constraint_domain[labels == bool,]) / n_k
-    constraint_domain_kcenter[i,] <- colMeans(constraint_domain[labels == bool,])
-    optimization_domain_kcenter[i,] <- colMeans(optimization_domain[labels == bool,])
-    WG <- sweep(optimization_domain[labels == bool,], 2, optimization_domain_kcenter[i,])
-    WWG <- sweep(constraint_domain[labels == bool,], 2, constraint_domain_kcenter[i,])
-    W[[i]] <- t(WG) %*% WG
-    WW[[i]] <- t(WWG) %*% WWG
+    constraint_domain_kcenter[i,] <- colMeans(constraint_domain[labels == i,])
+    optimization_domain_kcenter[i,] <- colMeans(optimization_domain[labels == i,])
+    WG <- sweep(optimization_domain[labels == i,], 2, optimization_domain_kcenter[i,])
+    WWG <- sweep(constraint_domain[labels == i,], 2, constraint_domain_kcenter[i,])
     WSS[i] <- sum(WG**2)
-    weightedWSS[i] <- sum(WWG**2) / cluster_count[i, 2]
-    BSS[i] <- n_k * sum((optimization_domain_kcenter[i,] - optimization_domain_center)**2)
-    weightedBSS[i] <- sum((constraint_domain_center - constraint_domain_kcenter[i,])**2)
+    weightedWSS[i] <- sum(WWG**2)
+    edgecount[i] <- table(idx[,4]==i)['TRUE']
+    edgelength[i] <- mean(idx[idx[,4]==i,3])
   }
-  WG <- 0
-  WWG <- 0
-  B <- optimization_domain_kcenter
-  for(i in 1:k){
-    WG <- WG + W[[i]]
-    WWG <- WWG + WW[[i]]
-    B[i,] <- (optimization_domain_kcenter[i,] - optimization_domain_center) * cluster_count[i,2]
-  }
-  B <- t(B) %*% B
-  sumww <- sum(weightedWSS)
-  sumwb <- sum(weightedBSS)
-  sumw <- sum(WSS)
-  sumb <- sum(BSS)
-  edgesum <- sum(edgelength) / length(edgelength)
-  total <- 0
-  for(i in 1:k){
-    total <- total + WSS[i] / k + weightedWSS[i] * (edgelength[i] / edgesum - 1) / k
-  }
-  # total + WSS[i] / k + weightedWSS[i] * (1 + abs(edgelength[i] / edgesum - 1)) / k
-  # sum(BSS) / sum(WSS) / (k - 1) * (n - k)
-  # total <- total + WSS[i] / cluster_count[i, 2] / sums * weightedWSS[i] / k
-  # sum(diag(solve(WG) %*% B))
-  # (BSS ** (1-f) + weightedBSS **f) / (WSS ** (1-f) + weightedWSS ** f) * (n - k) / (k - 1)
-  # sum(diag(solve(WG) %*% B))
+  edgesum <- sum(edgelength * edgecount) / sum(edgecount)
+  alpha <- (edgelength - edgesum) / edgesum
+  alpha <- 1 / (1 + exp(-alpha))
+  total <- sum(WSS * alpha + weightedWSS * (1 - alpha)) / k
 
   return(total)
+}
+
+SMI <- function(constraint_domain, optimization_domain, hclust, max_k){
+  index <- vector(length = max_k-1)
+  for(i in 2:max_k){
+    index[i-1] <- newCrit(constraint_domain, optimization_domain, hclust, i)
+  }
+  diff <- -diff(index)
+  ratio <- diff / index[-(max_k-1)]
+  bestCluster <- which.max(ratio)+2
+  res <- list()
+  res$bestCluster <- bestCluster
+  res$index <- index
+  res$ratio <- ratio
+  return(res)
+}
+
+edgelength <- function(constraint_domain, hclust_obj, k){
+  require(alphahull)
+  vor <- delvor(constraint_domain)
+  n_k <- nrow(constraint_domain)
+  idx <- vor$mesh[,c(1,2,11,12)]
+  idx <- cbind(idx, matrix(0, ncol=2, nrow=nrow(idx)))
+  group <- rep(0, nrow(idx))
+  clusterLabel <- as.numeric(cutree(hclust_obj, k))
+  edgelength <- 0
+  for(j in 1:nrow(vor$mesh)){
+    idx[j,5] <- sum((constraint_domain[idx[j,1],] - constraint_domain[idx[j,2],])**2)
+    if(clusterLabel[idx[j,1]] == clusterLabel[idx[j,2]]
+       & (idx[j,3]==0 & idx[j,4]==0)){
+      idx[j,6] <- clusterLabel[idx[j,1]]
+    }
+  }
+
+  idx <- idx[,c(1,2,5,6)]
+  colnames(idx) <- c('idx1', 'idx2', 'len', 'label')
+
+  return(idx)
 }
