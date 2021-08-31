@@ -137,10 +137,10 @@ AGNES <- function(dist_matrix, adj_mat, linkage, iterate){
           dist_matrix[min_dist[1], min_dist[2]]
         )
 
-      dist_matrix[min_dist[1], h] <- dist_matrix[h, min_dist[1]]
+        dist_matrix[min_dist[1], h] <- dist_matrix[h, min_dist[1]]
 
-      adj_mat[h, min_dist[1]] <- (adj_mat[h, min_dist[1]] | adj_mat[h, min_dist[2]])
-      adj_mat[min_dist[1], h] <- adj_mat[h, min_dist[1]]
+        adj_mat[h, min_dist[1]] <- (adj_mat[h, min_dist[1]] | adj_mat[h, min_dist[2]])
+        adj_mat[min_dist[1], h] <- adj_mat[h, min_dist[1]]
       }
     }
 
@@ -393,7 +393,7 @@ adjacencyCluster <- function(clusterLabels, adj_mat){
     for(j in 1:nrow(perGroupadj)){
       adjList[[i]] <- unique(clusterLabels[perGroupadj[j,] == 1])
 
-      }
+    }
 
   }
   return(adjList)

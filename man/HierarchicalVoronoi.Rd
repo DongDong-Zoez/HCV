@@ -11,32 +11,39 @@ HierarchicalVoronoi(constraint_domain, optimization_domain, linkage, iterate)
 
 \item{optimization_domain:}{`[matrix]`: The spatial feature of the data.}
 
-\item{linkage:}{
-`[character]`: The valid arguments are "single", "complete", "average", "median", "ward", "centroid" and "weighted".
+\item{linkage:}{`[character]`: The valid arguments are "single", "complete", "average", "median", "ward", "centroid" and "weighted".}
+
+\item{diss:}{`[character]`: Set diss = "precomputed" for input optimization_domain as a distance matrix}
 }
 
-\item{iterate:}
-{
-`[integer]`: The number of clusters, iterate = 2 is recommanded.}
+\item{adjacency:}{`[boolean]`: Set adjacency = T for input constaraint_domain as an adjacency matrix}
+}
+
+\item{dist_method:}{`[character]`: The distance measurement for pairs of points, default is "euclidean"}
+}
+
+\item{...}{...}
+}
+
 }
 \value{
-a 'hclust' object.
+A 'hclust' object.
 }
 \description{
 The hierarchical clustering methods for the constraint of spatial homogeneity.
 }
 \examples{
 # data <- synthetic_data(5, 4, 0.15, 1000, 2)
-# clustStructure <- HierarchicalVoronoi(data$geo, data$feat, 'ward.D', 2)
-# clustStructure$label_matrix[1,] # The cluster label with number of clusters equal to `iterate`.
+# result <- HierarchicalVoronoi(data$geo, data$feat, 'ward.D', 2)
+# labels <- cutree(result, 3)
 }
 \author{
 DongDong-Zoez <lbry5230100@gmail.com> University of Taiwan NSYSU.
 }
 \seealso{
-`synthetic_data`
+`synthetic_data`, `SMI`
 }
 \details{
-The function is used to solve the dual problem. A dual problem is to minimize the cost of the spatial feature domain or the domain of your data attribute, at the meanwhile, we are expect that the cluster of geometry domain or constraint domain will form a compact region, namely, each cluster is bounded by some irregular curves and not overlap for each pairs of clusters. To achieve the goal, one is to consider the spatial homogeneity for spatial data, and this paper is following the idea of constructing the Delaunay triangulation and Voronoi diagram to make an approach for spatially homogeneity.
+The function is used to solve the dual problem. A dual problem is to minimize the cost of the spatial feature domain or the domain of your data attribute, at the meanwhile, we are expect that the cluster of geometry domain or constraint domain will form a compact region, namely, each cluster is bounded by some irregular curves and not overlap for each pairs of clusters. To achieve the goal, one is to consider the spatial homogeneity for spatial data, and HCV algorithm is following the idea of constructing the Delaunay triangulation and Voronoi diagram to make an approach for spatially homogeneity.
 }
 
