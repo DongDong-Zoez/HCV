@@ -1,6 +1,6 @@
 # HCV
 
-The latest version of the HCV algorithm has not publish on R Cran packages.
+The latest version of the HCV algorithm has not publish on R Cran packages yet.
 
 ## Installation
 
