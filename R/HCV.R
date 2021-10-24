@@ -246,6 +246,7 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
   clust$adjacency.matrix <- adj_mat
   clust$dist.matrix <- dist_matrix
   clust$connected <- 'Connected'
+  clust$cut_for_connect <- 1
   clust <- data_structure(clust, n)
   class(clust) <- 'hclust'
 
@@ -256,6 +257,7 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
       cat('The graph is not connected\n')
       cat('Use cutree(output,', n-i+1, ') to find the components')
       clust$connected <- 'Not connected'
+      clust$cut_for_connect <- n-i+1
       break
     }
   }
@@ -277,8 +279,6 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
     }
     clust$clusterGain <- clusterGain
   }
-
-
 
   return(clust)
 }
@@ -502,4 +502,104 @@ edgelength <- function(constraint_domain, hclust_obj, k){
   colnames(idx) <- c('idx1', 'idx2', 'len', 'label')
 
   return(idx)
+}
+
+FindComponents <- function(adj, label){
+
+  k <- max(label)
+  n <- length(label)
+  neighbor <- vector(mode = 'list', length = k)
+
+  for(i in 1:n){
+    neighbor[[label[i]]] <- c(neighbor[[label[i]]], i)
+  }
+
+  components <- list()
+  count <- 0
+  for(j in 1:k){
+    invisible(capture.output(
+      hclust <- HierarchicalVoronoi(adj[neighbor[[j]], neighbor[[j]]],
+                                    matrix(1,nrow=length(neighbor[[j]]))
+                                    , adjacency = T))
+    )
+
+    comp <- as.numeric(cutree(hclust, hclust$cut_for_connect))
+
+    for(l in 1:max(comp)){
+
+      count <- count + 1
+      components[[count]] <- neighbor[[j]][comp == l]
+
+    }
+  }
+
+  assignments <- rep(0, n)
+  for(i in 1:count){
+    for(j in 1:length(components[[i]])){
+      assignments[components[[i]][j]] <- i
+    }
+  }
+  return(list(labels = assignments, neighbor = neighbor))
+}
+
+spectralClust <- function(affinityMatrix, normalized  = T){
+  degreeMatrix <- diag(colSums(affinityMatrix))
+  laplacianMatrix <- degreeMatrix - affinityMatrix
+  diag(degreeMatrix) <- 1/sqrt(diag(degreeMatrix))
+  laplacianMatrix <- degreeMatrix %*% laplacianMatrix %*% degreeMatrix
+  eigenDec <- eigen(laplacianMatrix)
+  eigenVal <- eigenDec$values
+  eigenVec <- eigenDec$vectors
+  if(normalized){
+    eigenVec <- scale(eigenVec)
+  }
+  max_gap <- which.max(diff(eigenVal)) + 1
+  return(list(eigenVal=eigenVal, eigenVec=eigenVec, max_gap=max_gap))
+}
+
+K.Nearest.Neighbors <- function(dist_matrix, K){
+  n <- nrow(dist_matrix)
+  NN <- matrix(0, ncol = K, nrow = n)
+  for(i in 1:n){
+    NN[i,] <- order(dist_matrix[i,])[2:(K+1)]
+  }
+  return(NN)
+}
+
+affinityMat <- function(hclust, kernel = 'none', KNN = 7){
+  n <- nrow(hclust$merge) + 1
+  Tree <- TreeStructure(hclust)
+  leftNode <- Tree$leftNode
+  rightNode <- Tree$rightNode
+  height <- Tree$height
+  aveheight <- mean(height)
+
+  affinityMatrix <- matrix(Inf, ncol=n, nrow=n)
+  diag(affinityMatrix) <- 0
+
+  for(i in 1:(n-1)){
+    for(l in leftNode[[n-i]]){
+      for(r in rightNode[[n-i]]){
+        affinityMatrix[l, r] <- min(affinityMatrix[l, r], height[n-i])
+        affinityMatrix[r, l] <- min(affinityMatrix[r, l], height[n-i])
+      }
+    }
+  }
+  if(kernel == 'Gaussian'){
+    affinityMatrix <- exp(-affinityMatrix**2 / (aveheight**2))
+  }
+  else if(kernel == 'commute'){
+    NN <- K.Nearest.Neighbors(affinityMatrix, KNN)
+    KNNAD <- vector()
+    for(j in 1:n){
+      KNNAD[j] <- sum(affinityMatrix[NN[j,],j]) / KNN
+    }
+    dim(KNNAD) <- c(n,1)
+    KNNAD <- replicate(n, KNNAD)
+    dim(KNNAD) <- c(n,n)
+    print(affinityMatrix **2/ (KNNAD * t(KNNAD)))
+    affinityMatrix <- exp(-affinityMatrix **2 / (KNNAD * t(KNNAD)))
+  }
+  diag(affinityMatrix) <- 0
+  return(affinityMatrix)
 }
