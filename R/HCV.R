@@ -210,9 +210,9 @@ Clusterlabels <- function(cluster, n){
 }
 
 HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
-                                linkage, iterate=2, diss = 'none', adjacency=F,
-                                dist_method = 'euclidean', weighted=F, boundless=F,
-                                clusterGain = F){
+                                linkage='ward.D', iterate=2, diss = 'none',
+                                adjacency=F,dist_method = 'euclidean',
+                                weighted=F, boundless=F, clusterGain = F){
   n <- nrow(constraint_domain)
   if(diss == 'precomputed'){
     dist_matrix <- optimization_domain
@@ -238,13 +238,28 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
   result <- AGNES(dist_matrix, adj_mat, linkage, iterate + 1)
   clust <- list()
 
-  clust$label_matrix <- result[[1]]
+  clust$label.matrix <- result[[1]]
   clust$merge <- result[[2]]
   clust$height <- result[[3]]
   clust$method <- linkage
   clust$dist.method <- dist_method
+  clust$adjacency.matrix <- adj_mat
+  clust$dist.matrix <- dist_matrix
+  clust$connected <- 'Connected'
   clust <- data_structure(clust, n)
   class(clust) <- 'hclust'
+
+  for(i in 1:length(result[[3]])){
+
+    # height
+    if(result[[3]][i]==Inf){
+      cat('The graph is not connected\n')
+      cat('Use cutree(output,', n-i+1, ') to find the components')
+      clust$connected <- 'Not connected'
+      break
+    }
+  }
+
 
   if(clusterGain){
     clusterGain <- vector(length = (n-2))
@@ -262,6 +277,8 @@ HierarchicalVoronoi <- function(constraint_domain, optimization_domain,
     }
     clust$clusterGain <- clusterGain
   }
+
+
 
   return(clust)
 }
