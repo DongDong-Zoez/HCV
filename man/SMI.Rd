@@ -14,9 +14,10 @@ HierarchicalVoronoi(constraint_domain, optimization_domain, hclsut, max_k)
 \item{hclsut:}{`[hclust]`: A hclsut object generate by function `hclust` or `HierarchicalVoronoi`}
 
 \item{max_k:}{`[integer]`: A number which indicate the maximum number of group}
-}
 
 }
+
+
 \value{
 A 'list' object. The attribute of SMI is a list with component:
 
