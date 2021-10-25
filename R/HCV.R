@@ -539,7 +539,7 @@ FindComponents <- function(adj, label){
       assignments[components[[i]][j]] <- i
     }
   }
-  return(list(labels = assignments, neighbor = neighbor))
+  return(list(labels = assignments, neighbors = neighbor))
 }
 
 spectralClust <- function(affinityMatrix, normalized  = T){
