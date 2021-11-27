@@ -449,15 +449,21 @@ newCrit <- function(constraint_domain, optimization_domain, hclust, k, standardi
   WSS <- rep(0, k)
   weightedWSS <- rep(0, k)
   for(i in 1:k){
-    constraint_domain_kcenter[i,] <- colMeans(constraint_domain[labels == i,])
-    optimization_domain_kcenter[i,] <- colMeans(optimization_domain[labels == i,])
-    WG <- sweep(optimization_domain[labels == i,], 2, optimization_domain_kcenter[i,])
-    WWG <- sweep(constraint_domain[labels == i,], 2, constraint_domain_kcenter[i,])
+    constraint_domain_kmatrix <- matrix(as.matrix((constraint_domain[labels == i,])),
+                                        ncol=dim(constraint_domain)[-1])
+    optimization_domain_kmatrix <- matrix(as.matrix((optimization_domain[labels == i,])),
+                                          ncol=dim(optimization_domain)[-1])
+    constraint_domain_kcenter[i,] <- colMeans(constraint_domain_kmatrix)
+    optimization_domain_kcenter[i,] <- colMeans(optimization_domain_kmatrix)
+    WG <- sweep(optimization_domain_kmatrix, 2, optimization_domain_kcenter[i,])
+    WWG <- sweep(constraint_domain_kmatrix, 2, constraint_domain_kcenter[i,])
     WSS[i] <- sum(WG**2)
     weightedWSS[i] <- sum(WWG**2)
     edgecount[i] <- table(idx[,4]==i)['TRUE']
     edgelength[i] <- mean(idx[idx[,4]==i,3])
   }
+  edgecount[is.na(edgecount)] <- 0
+  edgelength[is.na(edgelength)] <- 0
   edgesum <- sum(edgelength * edgecount) / sum(edgecount)
   alpha <- (edgelength - edgesum) / edgesum
   alpha <- 1 / (1 + exp(-alpha))
